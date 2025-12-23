@@ -19,3 +19,7 @@ function migrateProject(data: any): Project {
 
 # Neutralino
 当前项目是基于 Neutralino.js 运行的，但是不要直接使用 Neutralino 全局变量 api，请使用 import { xxx } from '@neutralinojs/lib' 这种写法
+
+# 项目管理
+
+发版时需要更新 package vsrsion 和添加 git tag 以及更新 CHANGELOG.md
