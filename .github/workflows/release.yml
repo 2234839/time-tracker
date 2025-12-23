@@ -38,24 +38,15 @@ jobs:
           echo "=== Dist directory structure ==="
           find dist -type f -exec ls -lh {} \;
 
-      - name: Extract changelog for this release
-        id: changelog
-        run: |
-          # Get version from tag (remove 'v' prefix)
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "Version: $VERSION"
-
-          # Extract changelog for this version
-          # Look for section like "## [1.0.0] - 2025-12-23"
-          awk "/## \[$VERSION\]/,/## \[/" CHANGELOG.md | head -n -1 > release_notes.md
-          echo "Extracted release notes:"
-          cat release_notes.md
+      - name: Extract release notes
+        id: extract-release-notes
+        uses: ffurrer2/extract-release-notes@v2
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/time-tracker/time-tracker-*
-          body_file: release_notes.md
+          body: ${{ steps.extract-release-notes.outputs.release_notes }}
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
