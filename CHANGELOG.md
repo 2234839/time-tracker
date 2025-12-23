@@ -7,9 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Initial release
-
 ## [1.0.0] - 2025-12-23
 
 ### Added
@@ -24,3 +21,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 子项目支持：支持创建多级子项目
 - 项目排序：支持按最近使用、名称排序
 - 项目搜索：支持按项目名筛选
+- GitHub Actions 自动构建和发布流程
+- CHANGELOG.md 版本管理
