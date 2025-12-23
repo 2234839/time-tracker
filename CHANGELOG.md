@@ -27,3 +27,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - 默认关闭开发者工具启动时自动打开
+- 优化开发与生产环境 URL 配置（开发自动使用 Vite 服务器，生产使用构建文件）
