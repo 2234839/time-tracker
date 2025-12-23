@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- 默认关闭开发者工具启动时自动打开
+
 ## [1.0.0] - 2025-12-23
 
 ### Added
