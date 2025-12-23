@@ -10,7 +10,7 @@
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "neu:build": "neu build --release --embed-resources",
-    "neu:run": "neu run"
+    "neu:run": "neu run --url=http://localhost:5173"
   },
   "keywords": [],
   "author": "",

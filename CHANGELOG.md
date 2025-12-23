@@ -27,4 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - 默认关闭开发者工具启动时自动打开
-- 优化开发与生产环境 URL 配置（开发自动使用 Vite 服务器，生产使用构建文件）
+- 优化开发与生产环境 URL 配置
+  - neu:run 命令添加 --url 参数指向 Vite 开发服务器
+  - neu:build 使用本地构建文件
