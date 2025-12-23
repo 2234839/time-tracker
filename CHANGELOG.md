@@ -7,9 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- 默认关闭开发者工具启动时自动打开
-
 ## [1.0.0] - 2025-12-23
 
 ### Added
@@ -26,3 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 项目搜索：支持按项目名筛选
 - GitHub Actions 自动构建和发布流程
 - CHANGELOG.md 版本管理
+- README 添加界面预览截图
+
+### Changed
+- 默认关闭开发者工具启动时自动打开
