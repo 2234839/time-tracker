@@ -9,7 +9,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useStorage } from '@vueuse/core'
+import { useStorage } from '../../utils/storageHelper'
 
 const props = defineProps<{
   storageKey: string
@@ -18,6 +18,7 @@ const props = defineProps<{
   maxWidth?: number
 }>()
 
+// 使用自定义的 useStorage，自动从 Neutralino 存储加载和保存
 const width = useStorage<number>(props.storageKey, props.defaultWidth ?? 280)
 
 const isResizing = ref(false)
