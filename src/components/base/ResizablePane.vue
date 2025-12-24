@@ -9,7 +9,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useStorage } from '../../utils/storageHelper'
+import { useStorage } from '../../utils/storage'
 
 const props = defineProps<{
   storageKey: string

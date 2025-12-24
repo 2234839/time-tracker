@@ -63,7 +63,7 @@ import { ref, computed, watch } from 'vue'
 import type { Project } from '../../../types'
 import ProjectTreeNode from './ProjectTreeNode.vue'
 import ResizablePane from '../../base/ResizablePane.vue'
-import { useStorage } from '../../../utils/storageHelper'
+import { useStorage } from '../../../utils/storage'
 
 const props = defineProps<{
   projects: Project[]

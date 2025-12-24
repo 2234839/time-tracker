@@ -267,3 +267,38 @@ class Storage {
 export function createStorage(adapter: StorageAdapter) {
   return new Storage(adapter)
 }
+
+// ============ Vue Composables ============
+
+import { ref, watch, onMounted } from 'vue'
+import { storage as nlStorage } from '@neutralinojs/lib'
+
+/**
+ * Neutralino 存储适配的响应式存储 hook
+ * 类似 @vueuse/core 的 useStorage，但使用 Neutralino 存储 API
+ *
+ * @example
+ * const width = useStorage<number>('sidebar-width', 280)
+ */
+export function useStorage<T>(key: string, defaultValue: T) {
+  const value = ref<T>(defaultValue)
+
+  // 从 Neutralino 存储加载值
+  onMounted(async () => {
+    try {
+      const saved = await nlStorage.getData(key)
+      if (saved) {
+        value.value = JSON.parse(saved)
+      }
+    } catch {
+      // 没有保存的值，使用默认值
+    }
+  })
+
+  // 监听值变化，自动保存
+  watch(value, (newValue) => {
+    nlStorage.setData(key, JSON.stringify(newValue))
+  }, { deep: true })
+
+  return value
+}
