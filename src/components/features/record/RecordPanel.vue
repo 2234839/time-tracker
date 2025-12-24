@@ -90,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { Project, TimeRecord } from '../../../types'
 import Tabs from '../../base/Tabs.vue'
 import TabPanel from '../../base/TabPanel.vue'
@@ -144,6 +144,16 @@ computed(() => {
     activeTabIndex.value = 0
   }
   return projects
+})
+
+// 当 selectedProjectId 变化时，自动切换到对应的 tab
+watch(() => props.selectedProjectId, (newId) => {
+  if (newId) {
+    const index = displayProjects.value.findIndex(p => p.id === newId)
+    if (index !== -1) {
+      activeTabIndex.value = index
+    }
+  }
 })
 
 function isRunning(projectId: string): boolean {
