@@ -19,7 +19,7 @@ const props = defineProps<{
 }>()
 
 // 使用自定义的 useStorage，自动从 Neutralino 存储加载和保存
-const width = useStorage<number>(props.storageKey, props.defaultWidth ?? 280)
+const width = useStorage<number>(props.storageKey, { defaultValue: props.defaultWidth ?? 280 })
 
 const isResizing = ref(false)
 const startX = ref(0)

@@ -24,13 +24,11 @@
 pnpm install
 ```
 
-### 开发模式（浏览器）
+### 开发模式
 ```bash
-pnpm dev
+pnpm run
 ```
-访问 http://localhost:5173/
-
-注意：浏览器模式下 Neutralino API 不可用，需要构建后在 Neutralino 环境中运行。
+执行上面后执行 .\time-tracker-win_x64.exe --url=http://localhost:5173 ，可以指定应用内链接本地前端服务
 
 ### 构建
 ```bash

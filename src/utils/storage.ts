@@ -1,39 +1,212 @@
 import type { Project, TimeRecord, TimerState } from '../types'
+import { ref, watch, onMounted } from 'vue'
+import { storage as nlStorage } from '@neutralinojs/lib'
 
-// 版本历史
-// v1: 初始版本，Project 没有 parentId 字段
-// v2: 添加 parentId 字段支持子项目，TimerState 改为 activeTimers 结构
-// v3: 添加 sortOrder 和 lastUsedAt 字段支持排序
+// ============ 存储版本管理 ============
+/**
+ * 存储数据结构（版本化）
+ * 数据存储格式: { v: number, d: T }
+ * v: 版本号
+ * d: 实际数据
+ */
 
-// 数据迁移函数
+/**
+ * 存储键版本号定义
+ * 修改数据结构时递增对应键的版本号
+ */
+export const STORAGE_VERSIONS = {
+  // 核心业务数据（使用 Storage class）
+  projects: 3,
+  records: 1,
+  timer: 2,
+
+  // UI 状态数据（使用 useStorage hook）
+  'project-expanded': 1,
+  'sidebar-width': 1,
+} as const
+
+/**
+ * 版本历史说明：
+ *
+ * projects (v3):
+ *   - v1: 初始版本，Project 没有 parentId 字段
+ *   - v2: 添加 parentId 字段支持子项目
+ *   - v3: 添加 sortOrder 和 lastUsedAt 字段支持排序
+ *
+ * timer (v2):
+ *   - v1: 单个计时器，使用 { projectId, startTime } 结构
+ *   - v2: 多计时器支持，使用 { activeTimers: Record<string, number> } 结构
+ *
+ * records (v1): 初始版本
+ * project-expanded (v1): 初始版本
+ * sidebar-width (v1): 初始版本
+ */
+
+// ============ 类型定义 ============
+type Serializer<T> = {
+  read: (value: string) => T
+  write: (value: T) => string
+}
+
+type MergeDefaultsFn<T> = (storageValue: any, defaults: T) => T
+
+interface UseStorageOptions<T> {
+  defaultValue: T
+  version?: number
+  mergeDefaults?: boolean | MergeDefaultsFn<T>
+}
+
+// ============ 版本化序列化器 ============
+/**
+ * 创建版本化序列化器，将版本号和数据打包在一起
+ */
+function createVersionedSerializer<T>(version: number): Serializer<T> {
+  return {
+    read: (v: string) => {
+      try {
+        const parsed = JSON.parse(v)
+        // 兼容旧格式（直接存储数据，没有版本号）
+        if (typeof parsed === 'object' && parsed !== null && 'v' in parsed && 'd' in parsed) {
+          return parsed.d
+        }
+        // 旧格式数据，直接返回
+        return parsed
+      } catch {
+        return v as any
+      }
+    },
+    write: (value: T) => {
+      return JSON.stringify({ v: version, d: value })
+    },
+  }
+}
+
+/**
+ * 读取存储的版本号（用于迁移判断）
+ */
+function readStoredVersion(value: string): number {
+  try {
+    const parsed = JSON.parse(value)
+    if (typeof parsed === 'object' && parsed !== null && 'v' in parsed) {
+      return parsed.v
+    }
+    // 旧格式数据，默认版本为 1
+    return 1
+  } catch {
+    return 1
+  }
+}
+
+// ============ 低级存储操作 ============
+async function getData(key: string): Promise<string> {
+  return await nlStorage.getData(key)
+}
+
+async function setData(key: string, value: string): Promise<void> {
+  await nlStorage.setData(key, value)
+}
+
+// ============ 版本迁移的 useStorage（组件内使用） ============
+/**
+ * 支持版本迁移的响应式存储 hook（仅在组件内使用）
+ *
+ * 数据格式: { v: version, d: data }
+ *
+ * @example
+ * // 使用默认版本号（从 STORAGE_VERSIONS 获取）
+ * const state = useStorage('my-key', { defaultValue: {} })
+ *
+ * // 自定义版本号
+ * const state = useStorage('my-key', { defaultValue: {}, version: 2 })
+ */
+export function useStorage<T>(key: string, options: UseStorageOptions<T>) {
+  // 如果未指定版本，从 STORAGE_VERSIONS 获取默认版本，默认为 1
+  const defaultVersion = (STORAGE_VERSIONS as Record<string, number>)[key] ?? 1
+  const {
+    defaultValue,
+    version = defaultVersion,
+    mergeDefaults = false,
+  } = options
+
+  const value = ref<T>(defaultValue)
+  const serializer = createVersionedSerializer<T>(version)
+
+  function defaultMerge(storedValue: any, defaults: T): T {
+    if (typeof defaults === 'object' && defaults !== null && !Array.isArray(defaults)) {
+      return { ...defaults, ...storedValue }
+    }
+    return storedValue ?? defaults
+  }
+
+  // 加载数据
+  async function load() {
+    try {
+      const savedValue = await getData(key)
+
+      if (savedValue) {
+        const savedVersion = readStoredVersion(savedValue)
+        let parsedValue = serializer.read(savedValue)
+
+        // 版本迁移
+        if (savedVersion < version || mergeDefaults) {
+          if (typeof mergeDefaults === 'function') {
+            parsedValue = mergeDefaults(parsedValue, defaultValue)
+          } else if (mergeDefaults === true) {
+            parsedValue = defaultMerge(parsedValue, defaultValue)
+          }
+          // 保存迁移后的数据（带新版本号）
+          await setData(key, serializer.write(parsedValue))
+        }
+
+        value.value = parsedValue
+      }
+    } catch {
+      value.value = defaultValue
+    }
+  }
+
+  onMounted(load)
+
+  watch(value, (newValue) => {
+    setData(key, serializer.write(newValue))
+  }, { deep: true })
+
+  return value
+}
+
+// ============ 数据迁移函数 ============
 interface LegacyTimerStateV1 {
   projectId: string | null
   startTime: number | null
 }
 
-function migrateProject(project: any): Project {
-  let p = project
+function mergeProjects(stored: any, defaults: Project[]): Project[] {
+  let projects = stored || defaults
 
   // v1 -> v2: 添加 parentId 字段
-  if (p.parentId === undefined) {
-    p = { ...p, parentId: null }
+  if (projects && !projects.every((p: any) => 'parentId' in p)) {
+    projects = projects.map((p: any) => ({
+      ...p,
+      parentId: p.parentId ?? null
+    }))
   }
 
   // v2 -> v3: 添加 sortOrder 和 lastUsedAt 字段
-  if (p.sortOrder === undefined) {
-    p = { ...p, sortOrder: 0 }
-  }
-  if (p.lastUsedAt === undefined) {
-    p = { ...p, lastUsedAt: p.createdAt || Date.now() }
+  if (projects && !projects.every((p: any) => 'sortOrder' in p && 'lastUsedAt' in p)) {
+    projects = projects.map((p: any) => ({
+      ...p,
+      sortOrder: p.sortOrder ?? 0,
+      lastUsedAt: p.lastUsedAt ?? p.createdAt ?? Date.now()
+    }))
   }
 
-  return p
+  return projects
 }
 
-function migrateTimerState(timerData: any): TimerState {
-  // 检查是否是旧版本格式
-  if (timerData.projectId !== undefined || timerData.startTime !== undefined) {
-    const oldTimer = timerData as LegacyTimerStateV1
+function mergeTimerState(stored: any, defaults: TimerState): TimerState {
+  // v1 -> v2: 从单计时器迁移到多计时器
+  if (stored.projectId !== undefined || stored.startTime !== undefined) {
+    const oldTimer = stored as LegacyTimerStateV1
     if (oldTimer.projectId && oldTimer.startTime) {
       return {
         activeTimers: {
@@ -43,7 +216,8 @@ function migrateTimerState(timerData: any): TimerState {
     }
     return { activeTimers: {} }
   }
-  return timerData
+
+  return stored ?? defaults
 }
 
 function generateId(): string {
@@ -53,7 +227,8 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
 }
 
-// Storage 适配器接口
+// ============ Class 方式的存储（非组件环境使用） ============
+
 interface StorageAdapter {
   getData(key: string): Promise<string>
   setData(key: string, value: string): Promise<void>
@@ -67,51 +242,76 @@ class Storage {
 
   constructor(private storage: StorageAdapter) {}
 
+  /**
+   * 读取版本化数据
+   */
+  private async getVersionedData<T>(key: string, version: number, defaultValue: T): Promise<T> {
+    try {
+      const raw = await this.storage.getData(key)
+      if (!raw) return defaultValue
+
+      const savedVersion = readStoredVersion(raw)
+      let data = JSON.parse(raw).d ?? JSON.parse(raw) // 兼容旧格式
+
+      // 如果版本不匹配，执行迁移
+      if (savedVersion < version) {
+        data = this.migrateData(key, savedVersion, version, data)
+        await this.saveVersionedData(key, version, data)
+      }
+
+      return data
+    } catch {
+      return defaultValue
+    }
+  }
+
+  /**
+   * 保存版本化数据
+   */
+  private async saveVersionedData<T>(key: string, version: number, data: T): Promise<void> {
+    const versioned = { v: version, d: data }
+    await this.storage.setData(key, JSON.stringify(versioned))
+  }
+
+  /**
+   * 数据迁移
+   */
+  private migrateData(key: string, _fromVersion: number, _toVersion: number, data: any): any {
+    switch (key) {
+      case 'projects':
+        return mergeProjects(data, [])
+      case 'timer':
+        return mergeTimerState(data, { activeTimers: {} })
+      default:
+        return data
+    }
+  }
+
   async init() {
     if (this.initialized) return
 
-    try {
-      const projectsData = await this.storage.getData('projects')
-      const rawProjects = JSON.parse(projectsData)
-      this.projects = rawProjects.map(migrateProject)
-    } catch {
-      this.projects = []
-    }
+    // 加载并迁移 projects
+    this.projects = await this.getVersionedData('projects', STORAGE_VERSIONS.projects, [])
 
-    try {
-      const recordsData = await this.storage.getData('records')
-      this.records = JSON.parse(recordsData)
-    } catch {
-      this.records = []
-    }
+    // 加载 records
+    this.records = await this.getVersionedData('records', STORAGE_VERSIONS.records, [])
 
-    try {
-      const timerData = await this.storage.getData('timer')
-      this.timer = migrateTimerState(JSON.parse(timerData))
-    } catch {
-      this.timer = { activeTimers: {} }
-    }
+    // 加载并迁移 timer
+    this.timer = await this.getVersionedData('timer', STORAGE_VERSIONS.timer, { activeTimers: {} })
 
-    await this.saveAll()
     this.initialized = true
   }
 
-  private async saveAll() {
-    await this.storage.setData('projects', JSON.stringify(this.projects))
-    await this.storage.setData('records', JSON.stringify(this.records))
-    await this.storage.setData('timer', JSON.stringify(this.timer))
-  }
-
   private async saveProjects() {
-    await this.storage.setData('projects', JSON.stringify(this.projects))
+    await this.saveVersionedData('projects', STORAGE_VERSIONS.projects, this.projects)
   }
 
   private async saveRecords() {
-    await this.storage.setData('records', JSON.stringify(this.records))
+    await this.saveVersionedData('records', STORAGE_VERSIONS.records, this.records)
   }
 
   private async saveTimer() {
-    await this.storage.setData('timer', JSON.stringify(this.timer))
+    await this.saveVersionedData('timer', STORAGE_VERSIONS.timer, this.timer)
   }
 
   getProjects(): Project[] {
@@ -263,42 +463,6 @@ class Storage {
   }
 }
 
-// 导出工厂函数
 export function createStorage(adapter: StorageAdapter) {
   return new Storage(adapter)
-}
-
-// ============ Vue Composables ============
-
-import { ref, watch, onMounted } from 'vue'
-import { storage as nlStorage } from '@neutralinojs/lib'
-
-/**
- * Neutralino 存储适配的响应式存储 hook
- * 类似 @vueuse/core 的 useStorage，但使用 Neutralino 存储 API
- *
- * @example
- * const width = useStorage<number>('sidebar-width', 280)
- */
-export function useStorage<T>(key: string, defaultValue: T) {
-  const value = ref<T>(defaultValue)
-
-  // 从 Neutralino 存储加载值
-  onMounted(async () => {
-    try {
-      const saved = await nlStorage.getData(key)
-      if (saved) {
-        value.value = JSON.parse(saved)
-      }
-    } catch {
-      // 没有保存的值，使用默认值
-    }
-  })
-
-  // 监听值变化，自动保存
-  watch(value, (newValue) => {
-    nlStorage.setData(key, JSON.stringify(newValue))
-  }, { deep: true })
-
-  return value
 }

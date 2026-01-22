@@ -1,4 +1,6 @@
-# 数据迁移规则
+# 数据存储 storage
+
+所有需要持久化的数据都应该使用 src/utils/storage.ts 实现，请确保所有存储都使用了统一方案，都支持旧数据版本升级迁移
 
 每次修改存储结构时：
 
@@ -23,3 +25,5 @@ function migrateProject(data: any): Project {
 # 项目管理
 
 发版时需要更新 package vsrsion 和添加 git tag 以及更新 CHANGELOG.md
+
+- 除了发版时，我没有让你commit时请不要自行commit，可以询问我是否需要

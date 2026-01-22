@@ -60,10 +60,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { Project } from '../../../types'
+import type { Project } from '@/types'
 import ProjectTreeNode from './ProjectTreeNode.vue'
-import ResizablePane from '../../base/ResizablePane.vue'
-import { useStorage } from '../../../utils/storage'
+import ResizablePane from '@/components/base/ResizablePane.vue'
+import { useStorage } from '@/utils/storage'
 
 const props = defineProps<{
   projects: Project[]
@@ -72,7 +72,7 @@ const props = defineProps<{
 }>()
 
 // 项目展开状态持久化（使用 Neutralino 存储）
-const expandedState = useStorage<Record<string, boolean>>('project-expanded', {})
+const expandedState = useStorage<Record<string, boolean>>('project-expanded', { defaultValue: {} })
 
 // 搜索关键词
 const searchQuery = ref('')

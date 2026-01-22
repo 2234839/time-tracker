@@ -29,20 +29,20 @@
           <button
             v-if="isRunning(project.id)"
             class="btn-stop"
-            @click="$emit('stop', project.id)"
+            @click="handleStop"
           >
             停止
           </button>
           <button
             v-else
             class="btn-start"
-            @click="$emit('start', project.id)"
+            @click="handleStart"
           >
             开始
           </button>
           <Dropdown>
             <template #trigger>
-              <button class="btn-icon btn-more">
+              <button class="btn-icon btn-more" @click="handleMore">
                 <svg width="16" height="16" viewBox="0 0 16 16">
                   <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
                   <circle cx="3" cy="8" r="1.5" fill="currentColor"/>
@@ -189,6 +189,24 @@ const hasChildren = computed(() => {
 
 function toggleExpanded() {
   expanded.value = !expanded.value
+}
+
+// 统一处理操作：先选中项目，再执行操作
+function handleAction(action: () => void) {
+  emit('select', props.project.id)
+  action()
+}
+
+function handleStart() {
+  handleAction(() => emit('start', props.project.id))
+}
+
+function handleStop() {
+  handleAction(() => emit('stop', props.project.id))
+}
+
+function handleMore() {
+  emit('select', props.project.id)
 }
 
 // 高亮匹配的文本

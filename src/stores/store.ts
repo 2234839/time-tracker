@@ -23,7 +23,7 @@ export const store = reactive({
   },
 
   getProject(id: string) {
-    return this.projects.find(p => p.id === id)
+    return storage.getProject(id)
   },
 
   getChildren(parentId: string | null): Project[] {
@@ -55,8 +55,7 @@ export const store = reactive({
   },
 
   getRecords(projectId: string) {
-    return this.records.filter(r => r.projectId === projectId)
-      .sort((a, b) => b.startTime - a.startTime)
+    return storage.getRecords(projectId).sort((a, b) => b.startTime - a.startTime)
   },
 
   getProjectStats(projectId: string): ProjectStats {
@@ -110,7 +109,7 @@ export const store = reactive({
   },
 
   isTimerRunning(projectId: string): boolean {
-    return projectId in this.timer.activeTimers
+    return storage.isTimerRunning(projectId)
   },
 
   getTimerDuration(projectId: string): number {
@@ -135,7 +134,6 @@ export const store = reactive({
 
   async deleteProject(id: string) {
     await storage.deleteProject(id)
-    // 获取所有后代 ID
     const descendants = storage.getAllDescendants(id)
     const allIds = [id, ...descendants.map(p => p.id)]
     this.projects = this.projects.filter(p => !allIds.includes(p.id))
@@ -143,18 +141,12 @@ export const store = reactive({
   },
 
   async startTimer(projectId: string) {
-    // 如果该项目已经在计时，不重复启动
     if (this.isTimerRunning(projectId)) {
       return
     }
 
-    // 更新项目使用时间
     await storage.updateProjectLastUsed(projectId)
     const project = this.getProject(projectId)
-    if (project) {
-      project.lastUsedAt = Date.now()
-    }
-
     if (!project) return
 
     const record = await storage.addRecord({
@@ -172,7 +164,6 @@ export const store = reactive({
 
   async updateProjectOrder(projectIds: string[]) {
     await storage.updateProjectOrder(projectIds)
-    // 更新本地 sortOrder
     for (let i = 0; i < projectIds.length; i++) {
       const project = this.getProject(projectIds[i])
       if (project) {
