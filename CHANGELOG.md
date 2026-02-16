@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-02-16
+
+### Changed
+- 优化项目排序逻辑，按有效最后使用时间智能排序
+  - 排序时间包括所有子孙项目的最大使用时间
+  - 停止计时时也更新项目的最后使用时间
+  - 自动展开最近使用项目和正在运行项目的路径
+  - 子项目也按最后使用时间排序
+
 ## [1.0.0] - 2025-12-23
 
 ### Added
