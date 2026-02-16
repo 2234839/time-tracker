@@ -59,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import type { Project } from '@/types'
 import ProjectTreeNode from './ProjectTreeNode.vue'
 import ResizablePane from '@/components/base/ResizablePane.vue'
@@ -87,10 +87,83 @@ const emit = defineEmits<{
   add: []
 }>()
 
-// 按最近使用时间排序
+/** 获取项目的所有祖先项目 ID */
+function getAncestorIds(projectId: string): string[] {
+  const project = props.projects.find(p => p.id === projectId)
+  if (!project || !project.parentId) return []
+
+  const ancestors: string[] = [project.parentId]
+  const parentAncestors = getAncestorIds(project.parentId)
+  ancestors.push(...parentAncestors)
+
+  return ancestors
+}
+
+/** 找到最近使用的项目并展开其路径 */
+function expandRecentProjectPath() {
+  let recentProject: Project | null = null
+  let maxTime = 0
+
+  for (const project of props.projects) {
+    if (project.lastUsedAt > maxTime) {
+      maxTime = project.lastUsedAt
+      recentProject = project
+    }
+  }
+
+  if (recentProject) {
+    const ancestorIds = getAncestorIds(recentProject.id)
+    for (const id of ancestorIds) {
+      expandedState.value[id] = true
+    }
+  }
+}
+
+// 组件挂载时展开最近使用项目的路径
+onMounted(() => {
+  expandRecentProjectPath()
+})
+
+// 监听项目变化，自动展开最近使用项目的路径
+watch(() => props.projects, () => {
+  expandRecentProjectPath()
+}, { deep: true })
+
+// 监听计时器变化，自动展开正在运行项目的路径
+watch(() => props.runningTimers, () => {
+  const runningProjectIds = Object.keys(props.runningTimers)
+  for (const projectId of runningProjectIds) {
+    const ancestorIds = getAncestorIds(projectId)
+    for (const id of ancestorIds) {
+      expandedState.value[id] = true
+    }
+  }
+}, { deep: true })
+
+/** 计算项目的有效最后使用时间（包括所有子孙项目的最大时间） */
+function getEffectiveLastUsed(projectId: string): number {
+  const project = props.projects.find(p => p.id === projectId)
+  if (!project) return 0
+
+  let maxTime = project.lastUsedAt
+  const children = props.projects.filter(p => p.parentId === projectId)
+
+  for (const child of children) {
+    const childTime = getEffectiveLastUsed(child.id)
+    maxTime = Math.max(maxTime, childTime)
+  }
+
+  return maxTime
+}
+
+// 按最近使用时间排序（包括子项目的时间）
 const sortedProjects = computed(() => {
   const topLevel = props.projects.filter(p => p.parentId === null)
-  return topLevel.sort((a, b) => b.lastUsedAt - a.lastUsedAt)
+  return topLevel.sort((a, b) => {
+    const timeA = getEffectiveLastUsed(a.id)
+    const timeB = getEffectiveLastUsed(b.id)
+    return timeB - timeA
+  })
 })
 
 // 搜索时自动展开所有项目

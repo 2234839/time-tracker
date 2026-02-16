@@ -183,6 +183,9 @@ export const store = reactive({
   async stopTimer(projectId: string) {
     if (!this.isTimerRunning(projectId)) return
 
+    // 更新项目的最后使用时间
+    await this.updateProjectLastUsed(projectId)
+
     const endTime = Date.now()
     const activeRecord = this.getActiveRecord(projectId)
     if (activeRecord) {

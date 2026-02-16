@@ -121,9 +121,30 @@ const expanded = computed({
 })
 const refreshKey = ref(0)
 
-// 获取子项目
+/** 计算项目的有效最后使用时间（包括所有子孙项目的最大时间） */
+function getEffectiveLastUsed(projectId: string): number {
+  const project = props.allProjects.find(p => p.id === projectId)
+  if (!project) return 0
+
+  let maxTime = project.lastUsedAt
+  const children = props.allProjects.filter(p => p.parentId === projectId)
+
+  for (const child of children) {
+    const childTime = getEffectiveLastUsed(child.id)
+    maxTime = Math.max(maxTime, childTime)
+  }
+
+  return maxTime
+}
+
+// 获取子项目（按有效最后使用时间排序）
 const childProjects = computed(() => {
-  return props.allProjects.filter(p => p.parentId === props.project.id)
+  const children = props.allProjects.filter(p => p.parentId === props.project.id)
+  return children.sort((a, b) => {
+    const timeA = getEffectiveLastUsed(a.id)
+    const timeB = getEffectiveLastUsed(b.id)
+    return timeB - timeA
+  })
 })
 
 // 检查项目名称是否匹配搜索
@@ -177,7 +198,8 @@ const filteredChildProjects = computed(() => {
       }
     }
 
-    return result
+    // 按最后使用时间排序
+    return result.sort((a, b) => b.lastUsedAt - a.lastUsedAt)
   }
 
   return filterChildren(props.project.id)
