@@ -21,6 +21,7 @@ function migrateProject(data: any): Project {
 
 # Neutralino
 当前项目是基于 Neutralino.js 运行的，但是不要直接使用 Neutralino 全局变量 api，请使用 import { xxx } from '@neutralinojs/lib' 这种写法
+执行 neu:build 编译二进制产物到 dist/time-tracker 下
 
 # 项目管理
 
