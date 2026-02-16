@@ -15,7 +15,7 @@
 
 ## 界面预览
 
-![界面展示](docs/image.png)
+![界面展示](docs/screenshot.png)
 
 ## 开发
 
